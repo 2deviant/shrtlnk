@@ -42,10 +42,13 @@ else
     aws s3api put-object-tagging --bucket $bucket --key $filename --tagging 'TagSet=[{Key=retention,Value=temporary}]'
 fi
 
-# display
+# compose the URL
 url=http://$domain/$filename
+# display to terminal
 echo $url
+# copy to clipboard
 echo -n $url | pbcopy
+# display OSX notification
 osascript <<EOD
 display notification "$2 uploaded as $url" with title "Upldr"
 EOD

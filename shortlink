@@ -37,10 +37,13 @@ else
     aws s3api put-object-tagging --bucket $bucket --key $short --tagging 'TagSet=[{Key=retention,Value=temporary}]'
 fi
 
-# display
+# compose the URL
 url=http://$domain/$short
+# display to terminal
 echo $url
+# copy to clipboard
 echo -n $url | pbcopy
+# display OSX notification
 osascript <<EOD
 display notification "$2 short-linked to $short." with title "shrtlnk"
 EOD
