@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# bucket name
+bucket=www.bucket.name
+
+# domain name
+domain=bucket.name
+
+# AWS profile name
+export AWS_PROFILE=uploader
+
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "usage: shortlink <storage type> \"URL\" [Short URL]\
+
+
+    storage type:
+
+        p   permanent
+        t   temporary\
+
+"
+    exit;
+fi
+
+# if no special name is given
+if [ -z "$3" ]; then
+    # create a random one
+    short=$(openssl rand -base64 4 | tr -dC '[:alnum:]')
+else
+    short="$3"
+fi
+
+# temporary vs permanent link
+if [ "$1" == "p" ]; then
+    echo "creating a permanent link..."
+    echo | aws s3 cp - "s3://$bucket/$short" --website-redirect "$2" --acl=public-read
+else
+    # temporary link doesn't need to be redundant
+    echo "creating a temporary link..."
+    echo | aws s3 cp --storage-class REDUCED_REDUNDANCY - "s3://$bucket/$short" --website-redirect "$2" --acl=public-read
+    # and is marked as such
+    aws s3api put-object-tagging --bucket "$bucket" --key "$short" --tagging 'TagSet=[{Key=retention,Value=temporary}]'
+fi
+
+# compose the URL
+url="http://$domain/$short"
+# display to terminal
+echo "$url"
+# copy to clipboard
+echo -n "$url" | pbcopy
+# display OSX notification
+osascript <<EOD
+display notification "$2 short-linked to $short." with title "shrtlnk"
+EOD
+

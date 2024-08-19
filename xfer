@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# bucket name
+bucket=www.bucket.name
+
+# domain name
+domain=bucket.name
+
+# AWS profile name
+export AWS_PROFILE=uploader
+
+if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "usage: xfer <storage type> <file> [remote file name]
+
+
+    storage type:
+
+        p   permanent
+        t   temporary\
+
+"
+    exit;
+fi
+
+# if no special name is given
+if [ -z "$3" ]; then
+    # create a random one
+    filename=$(openssl rand -base64 4 | tr -dC '[:alnum:]')
+    # preserve the extension of the file
+    ext="${2##*.}"
+    if [ "$ext" != "$2" ]; then
+        filename="$filename"."$ext"
+    fi
+else
+    filename="$3"
+fi
+
+# temporary vs permanent storage
+if [ "$1" == "p" ]; then
+    echo "creating a permanent file..."
+    aws s3 cp "$2" "s3://$bucket/$filename" --acl=public-read
+else
+    # temporary storage doesn't need to be redundant
+    echo "creating a temporary file..."
+    aws s3 cp --storage-class REDUCED_REDUNDANCY "$2" "s3://$bucket/$filename" --acl=public-read
+    # and is marked as such
+    aws s3api put-object-tagging --bucket "$bucket" --key "$filename" --tagging 'TagSet=[{Key=retention,Value=temporary}]'
+fi
+
+# compose the URL
+url="http://$domain/$filename"
+# display to terminal
+echo "$url"
+# copy to clipboard
+echo -n "$url" | pbcopy
+# display OSX notification
+osascript <<EOD
+display notification "$2 uploaded as $url" with title "Upldr"
+EOD
+
